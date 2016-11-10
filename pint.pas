@@ -747,6 +747,12 @@ end;
 
 }
 
+procedure mov(src, dst: address; size: integer);
+var i: integer;
+begin
+  for i := 1 to size do store[dst + i - 1] := store[src + i - 1];
+end;
+
 procedure popint(var i: integer); begin sp := sp-intsize; i := getint(sp) end;
 procedure pshint(i: integer); begin putint(sp, i); sp := sp+intsize end;
 procedure poprel(var r: real); begin sp := sp-realsize; r := getrel(sp) end;
@@ -2166,58 +2172,57 @@ begin (* main *)
 
     end;
     case op of
-
-          0   (*lodi*): begin getp; getq; pshint(getint(base(p) + q)) end;
-          105 (*loda*): begin getp; getq; pshadr(getadr(base(p) + q)) end;
-          106 (*lodr*): begin getp; getq; pshrel(getrel(base(p) + q)) end;
-          107 (*lods*): begin getp; getq; getset(base(p) + q, s1); pshset(s1) end;
+          0   (*lodi*): begin getp; getq; mov(base(p) + q, sp, intsize); sp:=sp+intsize end;
+          105 (*loda*): begin getp; getq; mov(base(p) + q, sp, adrsize); sp:=sp+adrsize end;
+          106 (*lodr*): begin getp; getq; mov(base(p) + q, sp, realsize); sp:=sp+realsize end;
+          107 (*lods*): begin getp; getq; mov(base(p) + q, sp, setsize); sp:=sp+setsize end;
           108 (*lodb*): begin getp; getq; pshint(ord(getbol(base(p) + q))) end;
 					109 (*lodc*): begin getp; getq; pshint(ord(getchr(base(p) + q))) end;
-					180 (*ldzi*): begin getq; pshint(getint(mp + q)) end;
-					181 (*ldza*): begin getq; pshadr(getadr(mp + q)) end;
-          182 (*ldzr*): begin getq; pshrel(getrel(mp + q)) end;
-          183 (*ldzs*): begin getq; getset(mp + q, s1); pshset(s1) end;
+					180 (*ldzi*): begin getq; mov(mp + q, sp, intsize); sp:=sp+intsize end;
+					181 (*ldza*): begin getq; mov(mp + q, sp, adrsize); sp:=sp+adrsize end;
+          182 (*ldzr*): begin getq; mov(mp + q, sp, realsize); sp:=sp+realsize end;
+          183 (*ldzs*): begin getq; mov(mp + q, sp, setsize); sp:=sp+setsize end;
           184 (*ldzb*): begin getq; pshint(ord(getbol(mp + q))) end;
           185 (*ldzc*): begin getq; pshint(ord(getchr(mp + q))) end;
 
-          1  (*ldoi*): begin getq; pshint(getint(pctop+q)) end;
-          65 (*ldoa*): begin getq; pshadr(getadr(pctop+q)) end;
-          66 (*ldor*): begin getq; pshrel(getrel(pctop+q)) end;
-          67 (*ldos*): begin getq; getset(pctop+q, s1); pshset(s1) end;
+          1  (*ldoi*): begin getq; mov(pctop + q, sp, intsize); sp:=sp+intsize end;
+          65 (*ldoa*): begin getq; mov(pctop + q, sp, adrsize); sp:=sp+adrsize end;
+          66 (*ldor*): begin getq; mov(pctop + q, sp, realsize); sp:=sp+realsize end;
+          67 (*ldos*): begin getq; mov(pctop + q, sp, setsize); sp:=sp+setsize end;
           68 (*ldob*): begin getq; pshint(ord(getbol(pctop+q))) end;
           69 (*ldoc*): begin getq; pshint(ord(getchr(pctop+q))) end;
 
-          2  (*stri*): begin getp; getq; popint(i); putint(base(p)+q, i) end;
-          70 (*stra*): begin getp; getq; popadr(ad); putadr(base(p)+q, ad) end;
-          71 (*strr*): begin getp; getq; poprel(r1); putrel(base(p)+q, r1) end;
-          72 (*strs*): begin getp; getq; popset(s1); putset(base(p)+q, s1) end;
+          2  (*stri*): begin getp; getq; sp:=sp-intsize; mov(sp, base(p)+q, intsize) end;
+          70 (*stra*): begin getp; getq; sp:=sp-adrsize; mov(sp, base(p)+q, adrsize) end;
+          71 (*strr*): begin getp; getq; sp:=sp-realsize; mov(sp, base(p)+q, realsize) end;
+          72 (*strs*): begin getp; getq; sp:=sp-setsize; mov(sp, base(p)+q, setsize) end;
           73 (*strb*): begin getp; getq; popint(i1); b1 := i1 <> 0; 
                              putbol(base(p)+q, b1) end;
           74 (*strc*): begin getp; getq; popint(i1); c1 := chr(i1);
 															putchr(base(p)+q, c1) end;
-					186 (*stzi*): begin getq; popint(i); putint(mp+q, i) end;
-          187 (*stza*): begin getq; popadr(ad); putadr(mp+q, ad) end;
-          188 (*stzr*): begin getq; poprel(r1); putrel(mp+q, r1) end;
-          189 (*stzs*): begin getq; popset(s1); putset(mp+q, s1) end;
+					186 (*stzi*): begin getq; sp:=sp-intsize; mov(sp, mp+q, intsize) end;
+          187 (*stza*): begin getq; sp:=sp-adrsize; mov(sp, mp+q, adrsize) end;
+          188 (*stzr*): begin getq; sp:=sp-realsize; mov(sp, mp+q, realsize) end;
+          189 (*stzs*): begin getq; sp:=sp-setsize; mov(sp, mp+q, setsize) end;
           190 (*stzb*): begin getq; popint(i1); b1 := i1 <> 0; 
                              putbol(mp+q, b1) end;
           191 (*stzc*): begin getq; popint(i1); c1 := chr(i1);
                              putchr(mp+q, c1) end;
 
-          3  (*sroi*): begin getq; popint(i); putint(pctop+q, i); end;
-          75 (*sroa*): begin getq; popadr(ad); putadr(pctop+q, ad); end;
-          76 (*sror*): begin getq; poprel(r1); putrel(pctop+q, r1); end;
-          77 (*sros*): begin getq; popset(s1); putset(pctop+q, s1); end;
+          3  (*sroi*): begin getq; sp:=sp-intsize; mov(sp, pctop+q, intsize) end;
+          75 (*sroa*): begin getq; sp:=sp-adrsize; mov(sp, pctop+q, adrsize) end;
+          76 (*sror*): begin getq; sp:=sp-realsize; mov(sp, pctop+q, realsize) end;
+          77 (*sros*): begin getq; sp:=sp-setsize; mov(sp, pctop+q, setsize) end;
           78 (*srob*): begin getq; popint(i1); b1 := i1 <> 0; putbol(pctop+q, b1); end;
           79 (*sroc*): begin getq; popint(i1); c1 := chr(i1); putchr(pctop+q, c1); end;
 
           4 (*lda*): begin getp; getq; pshadr(base(p)+q) end;
           5 (*lao*): begin getq; pshadr(pctop+q) end;
 
-          6  (*stoi*): begin popint(i); popadr(ad); putint(ad, i) end;
-          80 (*stoa*): begin popadr(ad1); popadr(ad); putadr(ad, ad1) end;
-          81 (*stor*): begin poprel(r1); popadr(ad); putrel(ad, r1) end;
-          82 (*stos*): begin popset(s1); popadr(ad); putset(ad, s1) end;
+          6  (*stoi*): begin sp:=sp-intsize-adrsize; mov(sp+adrsize, getadr(sp), intsize) end;
+          80 (*stoa*): begin sp:=sp-adrsize-adrsize; mov(sp+adrsize, getadr(sp), adrsize) end;
+          81 (*stor*): begin sp:=sp-realsize-adrsize; mov(sp+adrsize, getadr(sp), realsize) end;
+          82 (*stos*): begin sp:=sp-setsize-adrsize; mov(sp+adrsize, getadr(sp), setsize) end;
           83 (*stob*): begin popint(i1); b1 := i1 <> 0; popadr(ad); 
                              putbol(ad, b1) end;
           84 (*stoc*): begin popint(i1); c1 := chr(i1); popadr(ad); 
@@ -2225,15 +2230,15 @@ begin (* main *)
 
           127 (*ldcc*): begin pshint(ord(getchr(pc))); pc := pc+1 end;
           126 (*ldcb*): begin pshint(ord(getbol(pc))); pc := pc+1 end;
-          123 (*ldci*): begin i := getint(pc); pc := pc+intsize; pshint(i) end;
+          123 (*ldci*): begin mov(pc, sp, intsize); pc := pc+intsize; sp:=sp+intsize end;
           125 (*ldcn*): pshadr(nilval) (* load nil *) ;
-          124 (*ldcr*): begin getq; pshrel(getrel(q)) end;
-          7   (*ldc*): begin getq; getset(q, s1); pshset(s1) end;
+          124 (*ldcr*): begin getq; mov(q, sp, intsize); sp:=sp+intsize end;
+          7   (*ldc*) : begin getq; mov(q, sp, setsize); sp:=sp+setsize end;
 
-          9  (*indi*): begin getq; popadr(ad); pshint(getint(ad+q)) end;
-          85 (*inda*): begin getq; popadr(ad); ad1 := getadr(ad+q); pshadr(ad1) end;
-          86 (*indr*): begin getq; popadr(ad); pshrel(getrel(ad+q)) end;
-          87 (*inds*): begin getq; popadr(ad); getset(ad+q, s1); pshset(s1) end;
+          9  (*indi*): begin getq; popadr(ad); mov(ad+q, sp, intsize); sp:=sp+intsize end;
+          85 (*inda*): begin getq; popadr(ad); mov(ad+q, sp, adrsize); sp:=sp+adrsize end;
+          86 (*indr*): begin getq; popadr(ad); mov(ad+q, sp, realsize); sp:=sp+realsize end;
+          87 (*inds*): begin getq; popadr(ad); mov(ad+q, sp, setsize); sp:=sp+setsize end;
           88 (*indb*): begin getq; popadr(ad); pshint(ord(getbol(ad+q))) end;
           89 (*indc*): begin getq; popadr(ad); pshint(ord(getchr(ad+q))) end;
 
