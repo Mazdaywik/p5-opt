@@ -447,7 +447,13 @@ var   pc          : address;   (*program address register*)
         ep  points to the maximum extent of the stack
         np  points to top of the dynamically allocated area*)
 
-      interpreting: boolean;
+			interpreting: boolean;
+			ts1: Timestamp;
+			ts2: Timestamp;	
+			amount: array[0..maxins] of integer;
+			time: array[0..maxins] of integer;
+			max_val: integer;
+			max_num: integer;
 
       { !!! remove this next statement for self compile }
       {elide}prd,prr     : text;{noelide}(*prd for read only, prr for write only *)
@@ -2109,7 +2115,8 @@ begin (* main *)
        lstins(pcs);
        writeln
 
-    end;
+		end;
+		GetTimeStamp(ts1);
     case op of
 
           0   (*lodi*): begin getp; getq; pshint(getint(base(p) + q)) end;
@@ -2513,8 +2520,11 @@ begin (* main *)
           250, 251, 252, 253, 254, 
           255: errori('illegal instruction      ');
 
-    end
-  end; (*while interpreting*)
+		end;
+		GetTimeStamp(ts2);
+		time[op]:=time[op] + (ts2.Hour * 60 * 60 * 1000000 + ts2.Minute * 60 * 1000000 + ts2.Second * 1000000 + ts2.MicroSecond) - (ts1.Hour * 60 * 60 * 1000000 + ts1.Minute * 60 * 1000000 + ts1.Second * 1000000 + ts1.MicroSecond);
+		amount[op]:= amount[op]+1;
+	end; (*while interpreting*)
 
   { perform heap dump if requested }
   if dodmpspc then repspc;
@@ -2522,6 +2532,34 @@ begin (* main *)
   1 : { abort run }
 
   writeln;
-  writeln('program complete');
+	writeln('program complete');
+
+	writeln('top times');
+	for i:=0 to maxins do begin
+		max_val:=-1;
+		for j:=0 to maxins do begin
+			if time[j] > max_val then begin
+				max_val:=time[j];
+				max_num:=j;
+			end;
+		end;
+		writeln(instr[max_num], ' = ', time[max_num]);
+		time[max_num]:=-1;
+	end;
+	writeln;
+	writeln('top calls');
+	for i:=0 to maxins do begin
+		max_val:=-1;
+		for j:=0 to maxins do begin
+			if amount[j] > max_val then begin
+				max_val:=amount[j];
+				max_num:=j;
+			end;
+		end;
+		writeln(instr[max_num], ' = ', amount[max_num]);
+		amount[max_num]:=-1;
+	end;
+
+
 
 end.
