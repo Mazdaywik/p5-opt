@@ -433,7 +433,14 @@ type
       alfa        = packed array[alfainx] of char;
       byte        = 0..255; { 8-bit byte }
       bytfil      = packed file of byte; { untyped file of bytes }
-      fileno      = 0..maxfil; { logical file number }
+			fileno      = 0..maxfil; { logical file number }
+			PListNode   = ^ListNode;
+			ListNode 		= record
+										key : address;
+										value : integer;
+										next:	 PListNode;
+									end;
+			
 
 var   pc          : address;   (*program address register*)
       pctop       : address;   { top of code store }
@@ -479,7 +486,10 @@ var   pc          : address;   (*program address register*)
       c1, c2      : char;
       a1, a2, a3  : address;
       fn          : fileno;
-      pcs         : address;
+			pcs         : address;
+			markListBegin		: PListNode;
+			markListEnd			: PListNode;
+			
 
 (*--------------------------------------------------------------------*)
 
@@ -496,6 +506,46 @@ var   pc          : address;   (*program address register*)
 
 }
 
+procedure listInsert(key: address; val: integer);
+var node : PListNode;
+begin
+	New(node);
+	node^.key := key;
+	node^.value := val;
+	node^.next := nil;
+	markListEnd^.next := node;
+	markListEnd := node;
+end;
+
+function listFind(key: address): integer;
+var node : PlistNode;
+begin
+	node := markListBegin;
+	while ((node^.next<>nil) and (node^.next^.key < key)) do node:=node^.next;
+	listFind:=node^.value;
+end;
+
+procedure listClear;
+var node, nextNode : PListNode;
+begin
+	node := markListBegin;
+	nextNode := node^.next;
+	while (nextNode <> nil) do begin
+		Dispose(node);
+		node := nextNode;
+		nextNode := node^.next;
+	end;
+end;
+
+procedure listInit;
+begin
+	New(markListBegin);
+	markListBegin^.key := -1;
+	markListBegin^.value := -1;
+	markListBegin^.next := nil;
+	markListEnd := markListBegin;
+end;
+		
 function getint(a: address): integer;
 
 var r: record case boolean of
@@ -1155,8 +1205,9 @@ procedure load;
                                if dosrclin then begin 
 
                                   { pass source line register instruction } 
-                                  store[pc] := 174; pc := pc+1;
-                                  putint(pc, x); pc := pc+intsize
+                                  {store[pc] := 174; pc := pc+1;
+																	putint(pc, x); pc := pc+intsize}
+																 listInsert(pc, x);
 
                                end;
                                { skip the rest of the line, which would be the
@@ -1496,7 +1547,8 @@ end; (*pmd*)
 
 procedure errori(string: beta);
 begin writeln; write('*** Runtime error');
-      if srclin > 0 then write(' [', srclin:1, ']');
+	  srclin:=listFind(pc);
+		if srclin > 0 then write(' [', srclin:1, ']');
       writeln(': ', string);
       pmd; goto 1
 end;(*errori*)
@@ -2083,9 +2135,12 @@ begin (* main *)
   { !!! remove this next statement for self compile }
   {elide}rewrite(prr);{noelide}
 
-  writeln('Assembling/loading program');
+	writeln('Assembling/loading program');
+
+	listInit;
+	
   load; (* assembles and stores code *)
-  pc := 0; sp := pctop; mp := pctop; np := cp; ep := 5; srclin := 0;
+  pc := 0; sp := pctop; mp := pctop; np := cp; ep := 5; {srclin := 0;}
 
   interpreting := true;
 
@@ -2497,13 +2552,9 @@ begin (* main *)
                         pshadr(i); pshadr(a1)
                       end;
 
-          174 (*mrkl*): begin getq; srclin := q; 
-                              if dotrcsrc then 
-                                writeln('Source line executed: ', q:1)
-                        end;
 
           { illegal instructions }
-          8,   121, 122, 175, 176, 177, 178,
+          8,   121, 122, 174, 175, 176, 177, 178,
           192, 193, 194, 195, 196, 197, 198, 199,
           200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
           210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
@@ -2521,6 +2572,7 @@ begin (* main *)
 
   1 : { abort run }
 
+	listClear;
   writeln;
   writeln('program complete');
 
