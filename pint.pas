@@ -1007,7 +1007,20 @@ procedure load;
          instr[171]:='lesc      '; insp[171] := false; insq[171] := 0;
          instr[172]:='lesm      '; insp[172] := false; insq[172] := intsize;
          instr[173]:='ente      '; insp[173] := false; insq[173] := intsize;
-         instr[174]:='mrkl*     '; insp[174] := false; insq[174] := intsize;
+				 instr[174]:='mrkl*     '; insp[174] := false; insq[174] := intsize;
+				 {added}
+				 instr[180]:='ldzi      '; insp[180] := false; insq[180] := intsize;
+				 instr[181]:='ldza      '; insp[181] := false; insq[181] := intsize;
+				 instr[182]:='ldzr      '; insp[182] := false; insq[182] := intsize;
+				 instr[183]:='ldzs      '; insp[183] := false; insq[183] := intsize;
+				 instr[184]:='ldzb      '; insp[184] := false; insq[184] := intsize;
+				 instr[185]:='ldzc      '; insp[185] := false; insq[185] := intsize;
+				 instr[186]:='stzi      '; insp[186] := false; insq[186] := intsize;
+				 instr[187]:='stza      '; insp[187] := false; insq[187] := intsize;
+				 instr[188]:='stzr      '; insp[188] := false; insq[188] := intsize;
+				 instr[189]:='stzs      '; insp[189] := false; insq[189] := intsize;
+				 instr[190]:='stzb      '; insp[190] := false; insq[190] := intsize;
+				 instr[191]:='stzc      '; insp[191] := false; insq[191] := intsize;
 
          { sav (mark) and rst (release) were removed }
          sptable[ 0]:='get       ';     sptable[ 1]:='put       ';
@@ -1218,9 +1231,9 @@ procedure load;
       end;
 
    begin  p := 0;  q := 0;  op := 0;
-      getname;
-      { note this search removes the top instruction from use }
-      while (instr[op]<>name) and (op < maxins) do op := op+1;
+		 getname;
+		 { note this search removes the top instruction from use }
+			while (instr[op]<>name) and (op < maxins) do op := op+1;
       if op = maxins then errorl('illegal instruction      ');
 
       case op of  (* get parameters p,q *)
@@ -1245,12 +1258,14 @@ procedure load;
           (*lao,ixa,mov,dmp,swp*)
           5,16,55,117,118,
 
-          (*ldo,sro,ind,inc,dec*)
+          (*ldo,sro,ind,inc,dec,ldz,stz*)
           1, 65, 66, 67, 68, 69,
           3, 75, 76, 77, 78, 79,
           9, 85, 86, 87, 88, 89,
           10, 90, 91, 92, 93, 94,
-          57, 100, 101, 102, 103, 104: begin read(prd,q); storeop; storeq end;
+          57, 100, 101, 102, 103, 104,
+					180, 181, 182, 183, 184, 185,
+					186, 187, 188, 189, 190, 191: begin read(prd,q); storeop; storeq end;
 
           (*pck,upk*)
           63, 64: begin read(prd,q); read(prd,q1); storeop; storeq; storeq1 end;
@@ -2102,7 +2117,13 @@ begin (* main *)
           106 (*lodr*): begin getp; getq; pshrel(getrel(base(p) + q)) end;
           107 (*lods*): begin getp; getq; getset(base(p) + q, s1); pshset(s1) end;
           108 (*lodb*): begin getp; getq; pshint(ord(getbol(base(p) + q))) end;
-          109 (*lodc*): begin getp; getq; pshint(ord(getchr(base(p) + q))) end;
+					109 (*lodc*): begin getp; getq; pshint(ord(getchr(base(p) + q))) end;
+					180 (*ldzi*): begin getq; pshint(getint(mp + q)) end;
+					181 (*ldza*): begin getq; pshadr(getadr(mp + q)) end;
+          182 (*ldzr*): begin getq; pshrel(getrel(mp + q)) end;
+          183 (*ldzs*): begin getq; getset(mp + q, s1); pshset(s1) end;
+          184 (*ldzb*): begin getq; pshint(ord(getbol(mp + q))) end;
+          185 (*ldzc*): begin getq; pshint(ord(getchr(mp + q))) end;
 
           1  (*ldoi*): begin getq; pshint(getint(pctop+q)) end;
           65 (*ldoa*): begin getq; pshadr(getadr(pctop+q)) end;
@@ -2118,7 +2139,15 @@ begin (* main *)
           73 (*strb*): begin getp; getq; popint(i1); b1 := i1 <> 0; 
                              putbol(base(p)+q, b1) end;
           74 (*strc*): begin getp; getq; popint(i1); c1 := chr(i1);
-                             putchr(base(p)+q, c1) end;
+															putchr(base(p)+q, c1) end;
+					186 (*stzi*): begin getq; popint(i); putint(mp+q, i) end;
+          187 (*stza*): begin getq; popadr(ad); putadr(mp+q, ad) end;
+          188 (*stzr*): begin getq; poprel(r1); putrel(mp+q, r1) end;
+          189 (*stzs*): begin getq; popset(s1); putset(mp+q, s1) end;
+          190 (*stzb*): begin getq; popint(i1); b1 := i1 <> 0; 
+                             putbol(mp+q, b1) end;
+          191 (*stzc*): begin getq; popint(i1); c1 := chr(i1);
+                             putchr(mp+q, c1) end;
 
           3  (*sroi*): begin getq; popint(i); putint(pctop+q, i); end;
           75 (*sroa*): begin getq; popadr(ad); putadr(pctop+q, ad); end;
@@ -2475,8 +2504,7 @@ begin (* main *)
 
           { illegal instructions }
           8,   121, 122, 175, 176, 177, 178,
-          180, 181, 182, 183, 184, 185, 186, 187, 188, 189,
-          190, 191, 192, 193, 194, 195, 196, 197, 198, 199,
+          192, 193, 194, 195, 196, 197, 198, 199,
           200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
           210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
           220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
