@@ -1078,6 +1078,19 @@ procedure load;
 				 instr[190]:='stzb      '; insp[190] := false; insq[190] := intsize;
 				 instr[191]:='stzc      '; insp[191] := false; insq[191] := intsize;
 
+				 instr[192]:='sldi      '; insp[192] := true; insq[192] := 0;
+				 instr[193]:='slda      '; insp[193] := true; insq[193] := 0;
+				 instr[194]:='sldr      '; insp[194] := true; insq[194] := 0;
+				 instr[195]:='slds      '; insp[195] := true; insq[195] := 0;
+				 instr[196]:='sldb      '; insp[196] := true; insq[196] := 0;
+				 instr[197]:='sldc      '; insp[197] := true; insq[197] := 0;
+				 instr[198]:='ssti      '; insp[198] := true; insq[198] := 0;
+				 instr[199]:='ssta      '; insp[199] := true; insq[199] := 0;
+				 instr[200]:='sstr      '; insp[200] := true; insq[200] := 0;
+				 instr[201]:='ssts      '; insp[201] := true; insq[201] := 0;
+				 instr[202]:='sstb      '; insp[202] := true; insq[202] := 0;
+				 instr[203]:='sstc      '; insp[203] := true; insq[203] := 0;
+
          { sav (mark) and rst (release) were removed }
          sptable[ 0]:='get       ';     sptable[ 1]:='put       ';
          sptable[ 2]:='---       ';     sptable[ 3]:='rln       ';
@@ -1307,7 +1320,9 @@ procedure load;
                            storep; storeq
                      end;
 
-          11,113(*mst,cip*): begin read(prd,p); storeop; storep end;
+					11,113,(*mst,cip*)
+					192, 193, 194, 195, 196, 197,(*sld*)
+					198, 199, 200, 201, 202, 203 (*sst*): begin read(prd,p); storeop; storep end;
 
           { equm,neqm,geqm,grtm,leqm,lesm take a parameter }
           142, 148, 154, 160, 166, 172,
@@ -2183,8 +2198,13 @@ begin (* main *)
           182 (*ldzr*): begin getq; mov(mp + q, sp, realsize); sp:=sp+realsize end;
           183 (*ldzs*): begin getq; mov(mp + q, sp, setsize); sp:=sp+setsize end;
           184 (*ldzb*): begin getq; pshint(ord(getbol(mp + q))) end;
-          185 (*ldzc*): begin getq; pshint(ord(getchr(mp + q))) end;
-
+					185 (*ldzc*): begin getq; pshint(ord(getchr(mp + q))) end;		
+					192 (*sldi*): begin getp; mov(mp + p, sp, intsize); sp:=sp+intsize end;
+					193 (*slda*): begin getp; mov(mp + p, sp, adrsize); sp:=sp+adrsize end;
+          194 (*sldr*): begin getp; mov(mp + p, sp, realsize); sp:=sp+realsize end;
+          195 (*slds*): begin getp; mov(mp + p, sp, setsize); sp:=sp+setsize end;
+          196 (*sldb*): begin getp; pshint(ord(getbol(mp + p))) end;
+          197 (*sldc*): begin getp; pshint(ord(getchr(mp + p))) end;
           1  (*ldoi*): begin getq; mov(pctop + q, sp, intsize); sp:=sp+intsize end;
           65 (*ldoa*): begin getq; mov(pctop + q, sp, adrsize); sp:=sp+adrsize end;
           66 (*ldor*): begin getq; mov(pctop + q, sp, realsize); sp:=sp+realsize end;
@@ -2196,19 +2216,20 @@ begin (* main *)
           70 (*stra*): begin getp; getq; sp:=sp-adrsize; mov(sp, base(p)+q, adrsize) end;
           71 (*strr*): begin getp; getq; sp:=sp-realsize; mov(sp, base(p)+q, realsize) end;
           72 (*strs*): begin getp; getq; sp:=sp-setsize; mov(sp, base(p)+q, setsize) end;
-          73 (*strb*): begin getp; getq; popint(i1); b1 := i1 <> 0; 
-                             putbol(base(p)+q, b1) end;
-          74 (*strc*): begin getp; getq; popint(i1); c1 := chr(i1);
-															putchr(base(p)+q, c1) end;
+          73 (*strb*): begin getp; getq; popint(i1); b1 := i1 <> 0; putbol(base(p)+q, b1) end;
+          74 (*strc*): begin getp; getq; popint(i1); c1 := chr(i1); putchr(base(p)+q, c1) end;
 					186 (*stzi*): begin getq; sp:=sp-intsize; mov(sp, mp+q, intsize) end;
           187 (*stza*): begin getq; sp:=sp-adrsize; mov(sp, mp+q, adrsize) end;
           188 (*stzr*): begin getq; sp:=sp-realsize; mov(sp, mp+q, realsize) end;
           189 (*stzs*): begin getq; sp:=sp-setsize; mov(sp, mp+q, setsize) end;
-          190 (*stzb*): begin getq; popint(i1); b1 := i1 <> 0; 
-                             putbol(mp+q, b1) end;
-          191 (*stzc*): begin getq; popint(i1); c1 := chr(i1);
-                             putchr(mp+q, c1) end;
-
+          190 (*stzb*): begin getq; popint(i1); b1 := i1 <> 0; putbol(mp+q, b1) end;
+          191 (*stzc*): begin getq; popint(i1); c1 := chr(i1); putchr(mp+q, c1) end;
+					198 (*ssti*): begin getp; sp:=sp-intsize; mov(sp, mp+p, intsize) end;
+          199 (*ssta*): begin getp; sp:=sp-adrsize; mov(sp, mp+p, adrsize) end;
+          200 (*sstr*): begin getp; sp:=sp-realsize; mov(sp, mp+p, realsize) end;
+          201 (*ssts*): begin getp; sp:=sp-setsize; mov(sp, mp+p, setsize) end;
+          202 (*sstb*): begin getp; popint(i1); b1 := i1 <> 0; putbol(mp+p, b1) end;
+          203 (*sstc*): begin getp; popint(i1); c1 := chr(i1); putchr(mp+p, c1) end;
           3  (*sroi*): begin getq; sp:=sp-intsize; mov(sp, pctop+q, intsize) end;
           75 (*sroa*): begin getq; sp:=sp-adrsize; mov(sp, pctop+q, adrsize) end;
           76 (*sror*): begin getq; sp:=sp-realsize; mov(sp, pctop+q, realsize) end;
@@ -2560,8 +2581,7 @@ begin (* main *)
 
           { illegal instructions }
           8,   121, 122, 174, 175, 176, 177, 178,
-          192, 193, 194, 195, 196, 197, 198, 199,
-          200, 201, 202, 203, 204, 205, 206, 207, 208, 209,
+          204, 205, 206, 207, 208, 209,
           210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
           220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
           230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
