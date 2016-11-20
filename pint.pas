@@ -455,7 +455,7 @@ var   pc          : address;   (*program address register*)
         np  points to top of the dynamically allocated area*)
 
       interpreting: boolean;
-
+			zero				: boolean;	{proc flag}
       { !!! remove this next statement for self compile }
       {elide}prd,prr     : text;{noelide}(*prd for read only, prr for write only *)
 
@@ -756,6 +756,7 @@ end;
 
 procedure popint(var i: integer); begin sp := sp-intsize; i := getint(sp) end;
 procedure pshint(i: integer); begin putint(sp, i); sp := sp+intsize end;
+procedure pshintb(i: integer); begin zero:=i=0; putint(sp, i); sp := sp+intsize end;
 procedure poprel(var r: real); begin sp := sp-realsize; r := getrel(sp) end;
 procedure pshrel(r: real); begin putrel(sp, r); sp := sp+realsize; end;
 procedure popset(var s: settype); begin sp := sp-setsize; getset(sp, s) end;
@@ -2154,7 +2155,7 @@ begin (*callsp*)
                                write(bfiltable[fn], store[sp-intsize+i-1]);
                             popint(i)
                       end;
-           31(*wbb*): begin popint(i); popadr(ad); pshadr(ad); pshint(i); 
+           31(*wbb*): begin popint(i); popadr(ad); pshadr(ad); pshintb(i); 
                             valfilwm(ad); fn := store[ad];
                             for i := 1 to boolsize do
                                write(bfiltable[fn], store[sp-intsize+i-1]);
@@ -2237,25 +2238,25 @@ begin (* main *)
           105 (*loda*): begin getp; getq; mov(base(p) + q, sp, adrsize); sp:=sp+adrsize end;
           106 (*lodr*): begin getp; getq; mov(base(p) + q, sp, realsize); sp:=sp+realsize end;
           107 (*lods*): begin getp; getq; mov(base(p) + q, sp, setsize); sp:=sp+setsize end;
-          108 (*lodb*): begin getp; getq; pshint(ord(getbol(base(p) + q))) end;
+          108 (*lodb*): begin getp; getq; pshintb(ord(getbol(base(p) + q))) end;
 					109 (*lodc*): begin getp; getq; pshint(ord(getchr(base(p) + q))) end;
 					180 (*ldzi*): begin getq; mov(mp + q, sp, intsize); sp:=sp+intsize end;
 					181 (*ldza*): begin getq; mov(mp + q, sp, adrsize); sp:=sp+adrsize end;
           182 (*ldzr*): begin getq; mov(mp + q, sp, realsize); sp:=sp+realsize end;
           183 (*ldzs*): begin getq; mov(mp + q, sp, setsize); sp:=sp+setsize end;
-          184 (*ldzb*): begin getq; pshint(ord(getbol(mp + q))) end;
+          184 (*ldzb*): begin getq; pshintb(ord(getbol(mp + q))) end;
 					185 (*ldzc*): begin getq; pshint(ord(getchr(mp + q))) end;		
 					192 (*sldi*): begin getp; mov(mp + p, sp, intsize); sp:=sp+intsize end;
 					193 (*slda*): begin getp; mov(mp + p, sp, adrsize); sp:=sp+adrsize end;
           194 (*sldr*): begin getp; mov(mp + p, sp, realsize); sp:=sp+realsize end;
           195 (*slds*): begin getp; mov(mp + p, sp, setsize); sp:=sp+setsize end;
-          196 (*sldb*): begin getp; pshint(ord(getbol(mp + p))) end;
+          196 (*sldb*): begin getp; pshintb(ord(getbol(mp + p))) end;
           197 (*sldc*): begin getp; pshint(ord(getchr(mp + p))) end;
           1  (*ldoi*): begin getq; mov(pctop + q, sp, intsize); sp:=sp+intsize end;
           65 (*ldoa*): begin getq; mov(pctop + q, sp, adrsize); sp:=sp+adrsize end;
           66 (*ldor*): begin getq; mov(pctop + q, sp, realsize); sp:=sp+realsize end;
           67 (*ldos*): begin getq; mov(pctop + q, sp, setsize); sp:=sp+setsize end;
-          68 (*ldob*): begin getq; pshint(ord(getbol(pctop+q))) end;
+          68 (*ldob*): begin getq; pshintb(ord(getbol(pctop+q))) end;
           69 (*ldoc*): begin getq; pshint(ord(getchr(pctop+q))) end;
 
           2  (*stri*): begin getp; getq; sp:=sp-intsize; mov(sp, base(p)+q, intsize) end;
@@ -2296,7 +2297,7 @@ begin (* main *)
                              putchr(ad, c1) end;
 
           127 (*ldcc*): begin pshint(ord(getchr(pc))); pc := pc+1 end;
-          126 (*ldcb*): begin pshint(ord(getbol(pc))); pc := pc+1 end;
+          126 (*ldcb*): begin pshintb(ord(getbol(pc))); pc := pc+1 end;
           123 (*ldci*): begin mov(pc, sp, intsize); pc := pc+intsize; sp:=sp+intsize end;
           125 (*ldcn*): pshadr(nilval) (* load nil *) ;
           124 (*ldcr*): begin getq; mov(q, sp, intsize); sp:=sp+intsize end;
@@ -2306,7 +2307,7 @@ begin (* main *)
           85 (*inda*): begin getq; popadr(ad); mov(ad+q, sp, adrsize); sp:=sp+adrsize end;
           86 (*indr*): begin getq; popadr(ad); mov(ad+q, sp, realsize); sp:=sp+realsize end;
           87 (*inds*): begin getq; popadr(ad); mov(ad+q, sp, setsize); sp:=sp+setsize end;
-          88 (*indb*): begin getq; popadr(ad); pshint(ord(getbol(ad+q))) end;
+          88 (*indb*): begin getq; popadr(ad); pshintb(ord(getbol(ad+q))) end;
           89 (*indc*): begin getq; popadr(ad); pshint(ord(getchr(ad+q))) end;
 
           93 (*incb*),
@@ -2407,58 +2408,58 @@ begin (* main *)
 
           16 (*ixa*): begin getq; popint(i); popadr(a1); pshadr(q*i+a1) end;
 
-          17  { equa }: begin popadr(a2); popadr(a1); pshint(ord(a1=a2)) end;
+          17  { equa }: begin popadr(a2); popadr(a1); pshintb(ord(a1=a2)) end;
           139 { equb },
           141 { equc },
-          137 { equi }: begin popint(i2); popint(i1); pshint(ord(i1=i2)) end;
-          138 { equr }: begin poprel(r2); poprel(r1); pshint(ord(r1=r2)) end;
-          140 { equs }: begin popset(s2); popset(s1); pshint(ord(s1=s2)) end;
-          142 { equm }: begin getq; compare; pshint(ord(b)) end;
+          137 { equi }: begin popint(i2); popint(i1); pshintb(ord(i1=i2)) end;
+          138 { equr }: begin poprel(r2); poprel(r1); pshintb(ord(r1=r2)) end;
+          140 { equs }: begin popset(s2); popset(s1); pshintb(ord(s1=s2)) end;
+          142 { equm }: begin getq; compare; pshintb(ord(b)) end;
 
-          18  { neqa }: begin popadr(a2); popadr(a1); pshint(ord(a1<>a2)) end;
+          18  { neqa }: begin popadr(a2); popadr(a1); pshintb(ord(a1<>a2)) end;
           145 { neqb },
           147 { neqc },
-          143 { neqi }: begin popint(i2); popint(i1); pshint(ord(i1<>i2)) end;
-          144 { neqr }: begin poprel(r2); poprel(r1); pshint(ord(r1<>r2)) end;
-          146 { neqs }: begin popset(s2); popset(s1); pshint(ord(s1<>s2)) end;
-          148 { neqm }: begin getq; compare; pshint(ord(not b)) end;
+          143 { neqi }: begin popint(i2); popint(i1); pshintb(ord(i1<>i2)) end;
+          144 { neqr }: begin poprel(r2); poprel(r1); pshintb(ord(r1<>r2)) end;
+          146 { neqs }: begin popset(s2); popset(s1); pshintb(ord(s1<>s2)) end;
+          148 { neqm }: begin getq; compare; pshintb(ord(not b)) end;
 
           19  { geqa }: errori('<,<=,>,>= for address    ');
           151 { geqb },
           153 { geqc },
-          149 { geqi }: begin popint(i2); popint(i1); pshint(ord(i1>=i2)) end;
-          150 { geqr }: begin poprel(r2); poprel(r1); pshint(ord(r1>=r2)) end;
-          152 { geqs }: begin popset(s2); popset(s1); pshint(ord(s1>=s2)) end;
-          154 { geqm }: begin getq; compare; pshint(ord(b or (store[a1+i] >= store[a2+i]))) end;
+          149 { geqi }: begin popint(i2); popint(i1); pshintb(ord(i1>=i2)) end;
+          150 { geqr }: begin poprel(r2); poprel(r1); pshintb(ord(r1>=r2)) end;
+          152 { geqs }: begin popset(s2); popset(s1); pshintb(ord(s1>=s2)) end;
+          154 { geqm }: begin getq; compare; pshintb(ord(b or (store[a1+i] >= store[a2+i]))) end;
 
           20  { grta }: errori('<,<=,>,>= for address    ');
           157 { grtb },
           159 { grtc },
-          155 { grti }: begin popint(i2); popint(i1); pshint(ord(i1>i2)) end;
-          156 { grtr }: begin poprel(r2); poprel(r1); pshint(ord(r1>r2)) end;
+          155 { grti }: begin popint(i2); popint(i1); pshintb(ord(i1>i2)) end;
+          156 { grtr }: begin poprel(r2); poprel(r1); pshintb(ord(r1>r2)) end;
           158 { grts }: errori('set inclusion            ');
-          160 { grtm }: begin getq; compare; pshint(ord(not b and (store[a1+i] > store[a2+i]))) end;
+          160 { grtm }: begin getq; compare; pshintb(ord(not b and (store[a1+i] > store[a2+i]))) end;
 
           21  { leqa }: errori('<,<=,>,>= for address    ');
           163 { leqb },
           165 { leqc },
-          161 { leqi }: begin popint(i2); popint(i1); pshint(ord(i1<=i2)) end;
-          162 { leqr }: begin poprel(r2); poprel(r1); pshint(ord(r1<=r2)) end;
-          164 { leqs }: begin popset(s2); popset(s1); pshint(ord(s1<=s2)) end;
-          166 { leqm }: begin getq; compare; pshint(ord(b or (store[a1+i] <= store[a2+i]))) end;
+          161 { leqi }: begin popint(i2); popint(i1); pshintb(ord(i1<=i2)) end;
+          162 { leqr }: begin poprel(r2); poprel(r1); pshintb(ord(r1<=r2)) end;
+          164 { leqs }: begin popset(s2); popset(s1); pshintb(ord(s1<=s2)) end;
+          166 { leqm }: begin getq; compare; pshintb(ord(b or (store[a1+i] <= store[a2+i]))) end;
 
           22  { lesa }: errori('<,<=,>,>= for address    ');
           169 { lesb },
           171 { lesc },
-          167 { lesi }: begin popint(i2); popint(i1); pshint(ord(i1<i2)) end;
-          168 { lesr }: begin poprel(r2); poprel(r1); pshint(ord(r1<r2)) end;
+          167 { lesi }: begin popint(i2); popint(i1); pshintb(ord(i1<i2)) end;
+          168 { lesr }: begin poprel(r2); poprel(r1); pshintb(ord(r1<r2)) end;
           170 { less }: errori('set inclusion            ');
-          172 { lesm }: begin getq; compare; pshint(ord(not b and (store[a1+i] < store[a2+i]))) end;
+          172 { lesm }: begin getq; compare; pshintb(ord(not b and (store[a1+i] < store[a2+i]))) end;
 
 					23 (*ujp*): begin getq; pc := q end;
 					204(*sujp*): begin getp; pc := pc + p - 2 - 128; end;
-					24 (*fjp*): begin getq; popint(i); if i = 0 then pc := q end;
-					205(*sfjp*): begin getp; popint(i); if i = 0 then pc := pc + p - 2 - 128 else pc:=pc+3; end; 
+					24 (*fjp*): begin getq; sp:=sp-intsize; if zero then pc := q end;
+					205(*sfjp*): begin getp; sp:=sp-intsize; if zero then pc := pc + p - 2 - 128 else pc:=pc+3; end; 
 					25 (*xjp*): begin getq; popint(i1); pc := i1*ujplen+q end;
 					206(*sxjp*): begin getp; popint(i1); pc := i1*ujplen + (pc + p - 2 - 128); end;
 
@@ -2494,16 +2495,17 @@ begin (* main *)
                         errori('value out of range       ')
                       end;
 
+
           27 (*eof*): begin popadr(ad); valfil(ad); fn := store[ad];
                             if fn <= prrfn then case fn of
-                               inputfn: pshint(ord(eof(input)));
-                               prdfn: pshint(ord(eof(prd)));
+                               inputfn: pshintb(ord(eof(input)));
+                               prdfn: pshintb(ord(eof(prd)));
                                outputfn,
                                prrfn: errori('eof test on output file  ')
                             end else begin 
-                               if filstate[fn] = fwrite then pshint(ord(true))
+                               if filstate[fn] = fwrite then pshintb(ord(true))
                                else if filstate[fn] = fread then 
-                                  pshint(ord(eof(filtable[fn]) and not filbuff[fn]))
+                                  pshintb(ord(eof(filtable[fn]) and not filbuff[fn]))
                                else errori('file is not open         ')
                             end
                       end;
@@ -2525,19 +2527,19 @@ begin (* main *)
           39 (*sqr*): begin poprel(r1); pshrel(sqr(r1)) end;
           40 (*abi*): begin popint(i1); pshint(abs(i1)) end;
           41 (*abr*): begin poprel(r1); pshrel(abs(r1)) end;
-          42 (*not*): begin popint(i1); b1 := i1 <> 0; pshint(ord(not b1)) end;
+          42 (*not*): begin popint(i1); b1 := i1 <> 0; pshintb(ord(not b1)) end;
           43 (*and*): begin popint(i2); b2 := i2 <> 0; 
                             popint(i1); b1 := i1 <> 0; 
-                            pshint(ord(b1 and b2)) end;
+                            pshintb(ord(b1 and b2)) end;
           44 (*ior*): begin popint(i2); b2 := i2 <> 0; 
                             popint(i1); b1 := i1 <> 0; 
-                            pshint(ord(b1 or b2)) end;
+                            pshintb(ord(b1 or b2)) end;
           45 (*dif*): begin popset(s2); popset(s1); pshset(s1-s2) end;
           46 (*int*): begin popset(s2); popset(s1); pshset(s1*s2) end;
           47 (*uni*): begin popset(s2); popset(s1); pshset(s1+s2) end;
-          48 (*inn*): begin popset(s1); popint(i1); pshint(ord(i1 in s1)) end;
+          48 (*inn*): begin popset(s1); popint(i1); pshintb(ord(i1 in s1)) end;
           49 (*mod*): begin popint(i2); popint(i1); pshint(i1 mod i2) end;
-          50 (*odd*): begin popint(i1); pshint(ord(odd(i1))) end;
+          50 (*odd*): begin popint(i1); pshintb(ord(odd(i1))) end;
           51 (*mpi*): begin popint(i2); popint(i1); pshint(i1*i2) end;
           52 (*mpr*): begin poprel(r2); poprel(r1); pshrel(r1*r2) end;
           53 (*dvi*): begin popint(i2); popint(i1); 
@@ -2616,7 +2618,7 @@ begin (* main *)
           115 (*efb*): begin
                       popadr(ad); pshadr(ad); valfilrm(ad); fn := store[ad];
                       { eof is file eof, and buffer not full }
-                      pshint(ord(eof(bfiltable[fn]) and not filbuff[fn]))
+                      pshintb(ord(eof(bfiltable[fn]) and not filbuff[fn]))
                      end;
           116 (*fvb*): begin popint(i); popadr(ad); pshadr(ad); valfil(ad);
                       fn := store[ad];
@@ -2631,8 +2633,8 @@ begin (* main *)
 
           118 (*swp*): begin getq; swpstk(q) end;
 
-          119 (*tjp*): begin getq; popint(i); if i <> 0 then pc := q end;
-					207 (*stjp*): begin getp; popint(i); if i <> 0 then pc := pc + p - 2 - 128 else pc:=pc+3; end;
+          119 (*tjp*): begin getq; sp:=sp-intsize; if (not zero) then pc := q end;
+					207 (*stjp*): begin getp; sp:=sp-intsize; if (not zero) then pc := pc + p - 2 - 128 else pc:=pc+3; end;
           120 (*lip*): begin getp; getq; ad := base(p) + q;
                         i := getadr(ad); a1 := getadr(ad+1*ptrsize);
                         pshadr(i); pshadr(a1)
