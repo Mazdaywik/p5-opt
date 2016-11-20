@@ -1178,21 +1178,28 @@ begin
 											q := getadr(ad+1+ord(insp[op]));
                       succ:= q; { get target address from that }
 											q:= labelvalue; { place new target address }
-
-											if ((op=23) or (op=24) or (op=25) or (op=119) or (op=13) or (op=173)) and (q - ad + 128 <= 255) and (q - ad + 128 >= 0) then begin
+											if ((op=23) or (op=24) or (op=25) or (op=119)) and (q - ad + 128 <= 255) and (q - ad + 128 >= 0) then begin
 												p:=q - ad + 128;
 												case op of
 													23:  op:=204;
 													24:  op:=205;
 													25:  op:=206;
 													119: op:=207;
-													13:  op:=208;
-													173: op:=209;
 												end;
 												store[ad]:=op;
 												store[ad+1]:=p;
 											end else begin
-												putadr(ad+1+ord(insp[op]), q);
+												if ((op=13) or (op=173)) and (q <= 255) then begin
+													p:=q;
+													case op of
+													13:  op:=208;
+													173: op:=209;
+													end;
+													store[ad]:=op;
+													store[ad+1]:=p;
+												end else begin
+													putadr(ad+1+ord(insp[op]), q);
+												end;
 											end;
                       if succ=-1 then endlist:= true
                                  else curr:= succ
@@ -1372,7 +1379,7 @@ begin
           63, 64: begin read(prd,q); read(prd,q1); storeop; storeq; storeq1 end;
 
           (*ujp,fjp,xjp,tjp*)
-          24, 25, 119, 13, 173: begin 
+          23, 24, 25, 119: begin 
 							labelsearch;
 							if (gotLabel) and (q - pc + 128 <= 255) and (q - pc + 128 >= 0) then begin
 								p:=q - pc + 128;
@@ -1381,8 +1388,6 @@ begin
 								24:  op:=205;
 								25:  op:=206;
 								119: op:=207;
-								13:  op:=208;
-								173: op:=209;
 								end;
 								storeop; storep; pc:=pc+3;
 							end else begin
@@ -1390,13 +1395,9 @@ begin
 							end;
 						end;
 
-          (*ents,ente*)
-					23: begin 
-							labelsearch;
-							storeop; storeq;
-							
-						end;
-
+					(*ents,ente*)
+					13, 173: begin labelsearch; storeop; storeq; end;
+			
           (*ipj,lpa*)
           112,114: begin read(prd,p); labelsearch; storeop; storep; storeq end;
 
@@ -2343,10 +2344,10 @@ begin (* main *)
                           if sp >= np then errori('store overflow           ');
                           { clear allocated memory }
                           while sp < ad do begin store[sp] := 0; sp := sp+1 end;
-                          putadr(mp+marksb, sp) { set bottom of stack }
-						end;
-					          208 (*sents*): begin getp; ad := mp + pc + p - 2 - 128; pc:=pc+3;
-                          if sp >= np then errori('store overflow           ');
+													putadr(mp+marksb, sp) { set bottom of stack }
+											end;
+				  208 (*sents*): begin getp; ad := mp + p; pc:=pc+3;
+													if sp >= np then errori('store overflow           ');
                           { clear allocated memory }
                           while sp < ad do begin store[sp] := 0; sp := sp+1 end;
                           putadr(mp+marksb, sp) { set bottom of stack }
@@ -2358,7 +2359,7 @@ begin (* main *)
                           putadr(mp+market, ep) { place current ep }
                         end;
                         (*q = max space required on stack*)
-					209 (*sente*): begin getp; ep := sp+ pc + p - 2 - 128; pc:=pc+3;
+					209 (*sente*): begin getp; ep := sp+ p; pc:=pc+3;
                           if ep >= np then errori('store overflow           ');
                           putadr(mp+market, ep) { place current ep }
                         end;
