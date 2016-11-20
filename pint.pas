@@ -1092,8 +1092,13 @@ procedure load;
 				 instr[202]:='sstb      '; insp[202] := true; insq[202] := 0;
 				 instr[203]:='sstc      '; insp[203] := true; insq[203] := 0;
 
-				 instr[204]:='sfjp      '; insp[204] := true; insq[204] := 0;
-				 
+				 instr[204]:='sujp      '; insp[204] := true; insq[204] := 3;
+				 instr[205]:='sfjp      '; insp[205] := true; insq[205] := 3;
+				 instr[206]:='sxjp      '; insp[206] := true; insq[206] := 3;
+				 instr[207]:='stjp      '; insp[207] := true; insq[207] := 3;
+				 instr[208]:='sents     '; insp[208] := true; insq[208] := 3;
+				 instr[209]:='sente     '; insp[209] := true; insq[209] := 3;
+
          { sav (mark) and rst (release) were removed }
          sptable[ 0]:='get       ';     sptable[ 1]:='put       ';
          sptable[ 2]:='---       ';     sptable[ 3]:='rln       ';
@@ -1171,9 +1176,23 @@ begin
 											op := store[ad]; { get instruction }
 											q := getadr(ad+1+ord(insp[op]));
                       succ:= q; { get target address from that }
-                      q:= labelvalue; { place new target address }
-                      ad := curr;
-                      putadr(ad+1+ord(insp[op]), q);
+											q:= labelvalue; { place new target address }
+
+											if ((op=23) or (op=24) or (op=25) or (op=119) or (op=13) or (op=173)) and (q - ad + 128 <= 255) and (q - ad + 128 >= 0) then begin
+												p:=q - ad + 128;
+												case op of
+													23:  op:=204;
+													24:  op:=205;
+													25:  op:=206;
+													119: op:=207;
+													13:  op:=208;
+													173: op:=209;
+												end;
+												store[ad]:=op;
+												store[ad+1]:=p;
+											end else begin
+												putadr(ad+1+ord(insp[op]), q);
+											end;
                       if succ=-1 then endlist:= true
                                  else curr:= succ
                  end
@@ -1351,23 +1370,30 @@ begin
           (*pck,upk*)
           63, 64: begin read(prd,q); read(prd,q1); storeop; storeq; storeq1 end;
 
-          (*fjp*)
-          24: begin 
+          (*ujp,fjp,xjp,tjp*)
+          24, 25, 119, 13, 173: begin 
 							labelsearch;
-							if (gotLabel) and (pc - q <= 255) then begin
-								p:=pc - q;
-								op:=204; (*fjp -> sfjp*)
-								storeop; storep;
+							if (gotLabel) and (q - pc + 128 <= 255) and (q - pc + 128 >= 0) then begin
+								p:=q - pc + 128;
+								case op of
+								23:  op:=204;
+								24:  op:=205;
+								25:  op:=206;
+								119: op:=207;
+								13:  op:=208;
+								173: op:=209;
+								end;
+								storeop; storep; pc:=pc+3;
 							end else begin
 								storeop; storeq;
 							end;
 						end;
 
-					(*ujp, xjp, tjp*)
           (*ents,ente*)
-					23, 25, 119, 13, 173: begin 
+					23: begin 
 							labelsearch;
 							storeop; storeq;
+							
 						end;
 
           (*ipj,lpa*)
@@ -2206,7 +2232,6 @@ begin (* main *)
        writeln
 
 		end;
-
 		case op of
           0   (*lodi*): begin getp; getq; mov(base(p) + q, sp, intsize); sp:=sp+intsize end;
           105 (*loda*): begin getp; getq; mov(base(p) + q, sp, adrsize); sp:=sp+adrsize end;
@@ -2318,7 +2343,13 @@ begin (* main *)
                           { clear allocated memory }
                           while sp < ad do begin store[sp] := 0; sp := sp+1 end;
                           putadr(mp+marksb, sp) { set bottom of stack }
-												end;
+						end;
+					          208 (*sents*): begin getp; ad := mp + pc + p - 2 - 128; pc:=pc+3;
+                          if sp >= np then errori('store overflow           ');
+                          { clear allocated memory }
+                          while sp < ad do begin store[sp] := 0; sp := sp+1 end;
+                          putadr(mp+marksb, sp) { set bottom of stack }
+                       end;
 
 
           173 (*ente*): begin getq; ep := sp+q;
@@ -2326,6 +2357,10 @@ begin (* main *)
                           putadr(mp+market, ep) { place current ep }
                         end;
                         (*q = max space required on stack*)
+					209 (*sente*): begin getp; ep := sp+ pc + p - 2 - 128; pc:=pc+3;
+                          if ep >= np then errori('store overflow           ');
+                          putadr(mp+market, ep) { place current ep }
+                        end;
                         
           14  (*retp*): begin
                          sp := mp;
@@ -2421,10 +2456,12 @@ begin (* main *)
           172 { lesm }: begin getq; compare; pshint(ord(not b and (store[a1+i] < store[a2+i]))) end;
 
 					23 (*ujp*): begin getq; pc := q end;
+					204(*sujp*): begin getp; pc := pc + p - 2 - 128; end;
 					24 (*fjp*): begin getq; popint(i); if i = 0 then pc := q end;
-					204(*sfjp*): begin getp; popint(i); if i = 0 then pc := pc - p - 2; end; 
+					205(*sfjp*): begin getp; popint(i); if i = 0 then pc := pc + p - 2 - 128 else pc:=pc+3; end; 
 					25 (*xjp*): begin getq; popint(i1); pc := i1*ujplen+q end;
-					
+					206(*sxjp*): begin getp; popint(i1); pc := i1*ujplen + (pc + p - 2 - 128); end;
+
           95 (*chka*): begin getq; popadr(a1); pshadr(a1); 
                              {     0 = assign pointer including nil
                                Not 0 = assign pointer from heap address }
@@ -2595,15 +2632,15 @@ begin (* main *)
           118 (*swp*): begin getq; swpstk(q) end;
 
           119 (*tjp*): begin getq; popint(i); if i <> 0 then pc := q end;
-					120 (*lip*): begin getp; getq; ad := base(p) + q;
+					207 (*stjp*): begin getp; popint(i); if i <> 0 then pc := pc + p - 2 - 128 else pc:=pc+3; end;
+          120 (*lip*): begin getp; getq; ad := base(p) + q;
                         i := getadr(ad); a1 := getadr(ad+1*ptrsize);
                         pshadr(i); pshadr(a1)
                       end;
 
 
           { illegal instructions }
-					8,   121, 122, 174, 175, 176, 177, 178,
-					205, 206, 207, 208, 209,
+          8,   121, 122, 174, 175, 176, 177, 178,
           210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
           220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
           230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
