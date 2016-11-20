@@ -489,6 +489,7 @@ var   pc          : address;   (*program address register*)
 			pcs         : address;
 			markListBegin		: PListNode;
 			markListEnd			: PListNode;
+			gotLabel 		: boolean;
 			
 
 (*--------------------------------------------------------------------*)
@@ -1091,6 +1092,8 @@ procedure load;
 				 instr[202]:='sstb      '; insp[202] := true; insq[202] := 0;
 				 instr[203]:='sstc      '; insp[203] := true; insq[203] := 0;
 
+				 instr[204]:='sfjp      '; insp[204] := true; insq[204] := 0;
+				 
          { sav (mark) and rst (release) were removed }
          sptable[ 0]:='get       ';     sptable[ 1]:='put       ';
          sptable[ 2]:='---       ';     sptable[ 3]:='rln       ';
@@ -1157,15 +1160,16 @@ procedure load;
                                of a list of future references*)
           endlist: boolean;
           op: instyp; q : address;  (*instruction register*)
-   begin
-      if labeltab[x].st=defined then errorl('duplicated label         ')
+begin
+	if labeltab[x].st=defined then errorl('duplicated label         ')
       else begin
              if labeltab[x].val<>-1 then (*forward reference(s)*)
-             begin curr:= labeltab[x].val; endlist:= false;
+						 begin
+								curr:= labeltab[x].val; endlist:= false;
                 while not endlist do begin
                       ad := curr;
-                      op := store[ad]; { get instruction }
-                      q := getadr(ad+1+ord(insp[op]));
+											op := store[ad]; { get instruction }
+											q := getadr(ad+1+ord(insp[op]));
                       succ:= q; { get target address from that }
                       q:= labelvalue; { place new target address }
                       ad := curr;
@@ -1176,8 +1180,8 @@ procedure load;
              end;
              labeltab[x].st := defined;
              labeltab[x].val:= labelvalue;
-      end
-   end;(*update*)
+			end;
+	 end;(*update*)
 
    procedure getnxt; { get next character }
    begin
@@ -1247,11 +1251,16 @@ procedure load;
           t: integer; { [sam] temp for compiler bug }
 
       procedure lookup(x: labelrg); (* search in label table*)
-      begin case labeltab[x].st of
+begin
+	case labeltab[x].st of
                 entered: begin q := labeltab[x].val;
-                           labeltab[x].val := pc
-                         end;
-                defined: q:= labeltab[x].val
+													labeltab[x].val := pc;
+													gotLabel:=false;
+												 end;
+								defined: begin
+													q:= labeltab[x].val;
+													gotLabel:=true;
+												end;
             end(*case label..*)
       end;(*lookup*)
 
@@ -1342,11 +1351,24 @@ procedure load;
           (*pck,upk*)
           63, 64: begin read(prd,q); read(prd,q1); storeop; storeq; storeq1 end;
 
-          (*ujp,fjp,xjp,lpa,tjp*)
-          23,24,25,119,
+          (*fjp*)
+          24: begin 
+							labelsearch;
+							if (gotLabel) and (pc - q <= 255) then begin
+								p:=pc - q;
+								op:=204; (*fjp -> sfjp*)
+								storeop; storep;
+							end else begin
+								storeop; storeq;
+							end;
+						end;
 
+					(*ujp, xjp, tjp*)
           (*ents,ente*)
-          13, 173: begin labelsearch; storeop; storeq end;
+					23, 25, 119, 13, 173: begin 
+							labelsearch;
+							storeop; storeq;
+						end;
 
           (*ipj,lpa*)
           112,114: begin read(prd,p); labelsearch; storeop; storep; storeq end;
@@ -2166,17 +2188,15 @@ begin (* main *)
   interpreting := true;
 
   writeln('Running program');
-  writeln;
+	writeln;
   while interpreting do
-  begin
+	begin
 
     { fetch instruction from byte store }
     pcs := pc; { save starting pc }
     getop;
-
-    (*execute*)
-
-    { trace executed instructions }
+		(*execute*)
+		{ trace executed instructions }
     if dotrcins then begin 
 
        wrthex(pcs, maxdigh);
@@ -2185,8 +2205,9 @@ begin (* main *)
        lstins(pcs);
        writeln
 
-    end;
-    case op of
+		end;
+
+		case op of
           0   (*lodi*): begin getp; getq; mov(base(p) + q, sp, intsize); sp:=sp+intsize end;
           105 (*loda*): begin getp; getq; mov(base(p) + q, sp, adrsize); sp:=sp+adrsize end;
           106 (*lodr*): begin getp; getq; mov(base(p) + q, sp, realsize); sp:=sp+realsize end;
@@ -2297,14 +2318,15 @@ begin (* main *)
                           { clear allocated memory }
                           while sp < ad do begin store[sp] := 0; sp := sp+1 end;
                           putadr(mp+marksb, sp) { set bottom of stack }
-                       end;
+												end;
+
 
           173 (*ente*): begin getq; ep := sp+q;
                           if ep >= np then errori('store overflow           ');
                           putadr(mp+market, ep) { place current ep }
                         end;
                         (*q = max space required on stack*)
-
+                        
           14  (*retp*): begin
                          sp := mp;
                          pc := getadr(mp+markra); { get ra }
@@ -2398,10 +2420,11 @@ begin (* main *)
           170 { less }: errori('set inclusion            ');
           172 { lesm }: begin getq; compare; pshint(ord(not b and (store[a1+i] < store[a2+i]))) end;
 
-          23 (*ujp*): begin getq; pc := q end;
-          24 (*fjp*): begin getq; popint(i); if i = 0 then pc := q end;
-          25 (*xjp*): begin getq; popint(i1); pc := i1*ujplen+q end;
-
+					23 (*ujp*): begin getq; pc := q end;
+					24 (*fjp*): begin getq; popint(i); if i = 0 then pc := q end;
+					204(*sfjp*): begin getp; popint(i); if i = 0 then pc := pc - p - 2; end; 
+					25 (*xjp*): begin getq; popint(i1); pc := i1*ujplen+q end;
+					
           95 (*chka*): begin getq; popadr(a1); pshadr(a1); 
                              {     0 = assign pointer including nil
                                Not 0 = assign pointer from heap address }
@@ -2572,16 +2595,15 @@ begin (* main *)
           118 (*swp*): begin getq; swpstk(q) end;
 
           119 (*tjp*): begin getq; popint(i); if i <> 0 then pc := q end;
-
-          120 (*lip*): begin getp; getq; ad := base(p) + q;
+					120 (*lip*): begin getp; getq; ad := base(p) + q;
                         i := getadr(ad); a1 := getadr(ad+1*ptrsize);
                         pshadr(i); pshadr(a1)
                       end;
 
 
           { illegal instructions }
-          8,   121, 122, 174, 175, 176, 177, 178,
-          204, 205, 206, 207, 208, 209,
+					8,   121, 122, 174, 175, 176, 177, 178,
+					205, 206, 207, 208, 209,
           210, 211, 212, 213, 214, 215, 216, 217, 218, 219,
           220, 221, 222, 223, 224, 225, 226, 227, 228, 229,
           230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
