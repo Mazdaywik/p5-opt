@@ -1178,6 +1178,7 @@ begin
 											q := getadr(ad+1+ord(insp[op]));
                       succ:= q; { get target address from that }
 											q:= labelvalue; { place new target address }
+
 											if ((op=23) or (op=24) or (op=25) or (op=119)) and (q - ad + 128 <= 255) and (q - ad + 128 >= 0) then begin
 												p:=q - ad + 128;
 												case op of
@@ -1397,7 +1398,6 @@ begin
 
 					(*ents,ente*)
 					13, 173: begin labelsearch; storeop; storeq; end;
-			
           (*ipj,lpa*)
           112,114: begin read(prd,p); labelsearch; storeop; storep; storeq end;
 
@@ -1966,7 +1966,7 @@ begin (*callsp*)
                                    errori('File not in read mode    ');
                                 line:=eoln(filtable[fn])
                            end;
-                           pshint(ord(line))
+                           pshintb(ord(line))
                       end;
            8 (*wri*): begin popint(w); popint(i); popadr(ad); pshadr(ad); 
                             valfil(ad); fn := store[ad];
@@ -2379,8 +2379,10 @@ begin (* main *)
                          ep := getadr(mp+markep);
                          mp := getadr(mp+markdl)
                        end;
-          131 (*retb*): begin
-                         putint(mp, ord(getbol(mp)));
+					131 (*retb*): begin
+												 b1:=getbol(mp);
+												 zero:= not b1;
+                         putint(mp, ord(b1));
                          sp := mp+intsize; { set stack above function result }
                          pc := getadr(mp+markra);
                          ep := getadr(mp+markep);
@@ -2528,13 +2530,15 @@ begin (* main *)
           39 (*sqr*): begin poprel(r1); pshrel(sqr(r1)) end;
           40 (*abi*): begin popint(i1); pshint(abs(i1)) end;
           41 (*abr*): begin poprel(r1); pshrel(abs(r1)) end;
-          42 (*not*): begin popint(i1); b1 := i1 <> 0; pshintb(ord(not b1)) end;
-          43 (*and*): begin popint(i2); b2 := i2 <> 0; 
-                            popint(i1); b1 := i1 <> 0; 
-                            pshintb(ord(b1 and b2)) end;
-          44 (*ior*): begin popint(i2); b2 := i2 <> 0; 
-                            popint(i1); b1 := i1 <> 0; 
-                            pshintb(ord(b1 or b2)) end;
+          42 (*not*): begin putint(sp-intsize, ord(zero)); zero:= not zero; end;
+          43 (*and*): begin sp:=sp-intsize; 
+														i1:=getint(sp-intsize); b1 := i1 <> 0; 
+														zero:=(not b1) or zero;		(*not(b1 and (not zero));*)
+                            putint(sp-intsize, ord(not zero)); end;
+          44 (*ior*): begin sp:=sp-intsize; 
+														i1:=getint(sp-intsize); b1 := i1 <> 0; 
+														zero:=(not b1) and zero;		(*not(b1 or (not zero));*)
+                            putint(sp-intsize, ord(not zero)); end;
           45 (*dif*): begin popset(s2); popset(s1); pshset(s1-s2) end;
           46 (*int*): begin popset(s2); popset(s1); pshset(s1*s2) end;
           47 (*uni*): begin popset(s2); popset(s1); pshset(s1+s2) end;
