@@ -811,7 +811,7 @@ var
   { find lower case of character }
   function lcase(c: char): char;
   begin
-    if c in ['A'..'Z'] then c := chr(ord(c)-ord('A')+ord('a'));
+    if (c >= 'A') and (c <= 'Z') then c := chr(ord(c)-ord('A')+ord('a'));
     lcase := c
   end { lcase };
 
